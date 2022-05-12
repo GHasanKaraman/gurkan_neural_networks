@@ -16,26 +16,32 @@ class Dense(Layer):
             if key == "input_dim":
                 self.input_dim = value
 
-class Input(Layer):
+class Input(Dense):
     def __init__(self, input_dim):
-        self.input_dim = input_dim
+        self.layer_name = "Input"
+        self.units = input_dim
+        self.use_bias = False
 
 class Activation(Layer):
     pass
 
-class ReLu(Activation, Layer):
+class Linear(Activation):
+    def __init__(self):
+        self.layer_name = "Linear"
+
+class ReLu(Activation):
     def __init__(self):
         self.layer_name = "ReLu"
 
-class Sigmoid(Activation, Layer):
+class Sigmoid(Activation):
     def __init__(self):
         self.layer_name = "Sigmoid"
 
-class Tanh(Activation, Layer):
+class Tanh(Activation):
     def __init__(self):
         self.layer_name = "Tanh"
 
-class LeakyReLu(Activation, Layer):
+class LeakyReLu(Activation):
     def __init__(self):
         self.layer_name = "LeakyReLu"
 
@@ -49,16 +55,15 @@ class Sequential:
 
     def initialize_weights(self):
         trainable_layers = list(filter(lambda layer: issubclass(type(layer), Dense) == True, self.layers)) 
-        for i in range(len(trainable_layers)):
-            if hasattr(trainable_layers[i], "input_dim"):
-                if i == 0:
-                    self.params["w1"] = np.random.rand(trainable_layers[i].units, trainable_layers[i].input_dim)
-                else:
-                    raise RuntimeError("You cannot add multiple input dimensions. It is only for the first layer!")
-            else:
-                self.params["w"+str(i+1)] = np.random.rand(trainable_layers[i].units, trainable_layers[i-1].units)
-            if trainable_layers[i].use_bias:
-                self.params["b"+str(i+1)] = np.random.rand(trainable_layers[i].units, 1)
+        if hasattr(trainable_layers[0], "input_dim"):
+            trainable_layers.insert(0, Input(trainable_layers[0].input_dim))
+            delattr(trainable_layers[1], "input_dim")
+        for i in range(len(trainable_layers) - 1):
+            if hasattr(trainable_layers[i+1], "input_dim"):
+                raise RuntimeError("You cannot add multiple input dimensions. It is only for the first layer!")
+            self.params["w"+str(i+1)] = np.random.rand(trainable_layers[i+1].units, trainable_layers[i].units)
+            self.params["b"+str(i+1)] = np.random.rand(trainable_layers[i+1].units, 1)
+
     def forward(self):
         pass
 
@@ -77,6 +82,7 @@ class Sequential:
         print("-"*65)
 
 model = Sequential()
+model.add(Input(5))
 model.add(Dense(32))
 model.add(ReLu())
 model.add(Dense(16))
@@ -87,6 +93,8 @@ model.add(Dense(4))
 model.add(LeakyReLu())
 
 model.initialize_weights()
+model.summary()
+print(len(model.params))
 
 for i in range(4):
-    print(model.params["w"+str(i+1)].shape)
+    print("w"+str(i+1), model.params["w"+str(i+1)].shape, "b"+str(i+1), model.params["b"+str(i+1)].shape)
